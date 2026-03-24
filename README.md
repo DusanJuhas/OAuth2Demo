@@ -35,8 +35,8 @@ The project is intended for learning and testing OAuth2 flows—not for producti
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your/repo.git
-cd your-repo
+git clone https://github.com/DusanJuhas/OAuth2Demo.git
+cd OAuth2Demo
 ```
 
 ### 2. Install dependencies
