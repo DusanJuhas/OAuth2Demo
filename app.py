@@ -16,7 +16,10 @@ This app is for development/demo purposes only.
 
 import os
 import datetime
+from typing import Any
+
 from flask import Flask, redirect, request, session, url_for
+from google.auth.exceptions import GoogleAuthError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -31,8 +34,8 @@ app = Flask(__name__)
 try:
     with open("my_secret.key", "rb") as f:
         app.secret_key = f.read()
-except FileNotFoundError:
-    raise RuntimeError("Missing my_secret.key. Run keyGenerator.py first!")
+except FileNotFoundError as exc:
+    raise RuntimeError("Missing my_secret.key. Run keyGenerator.py first!") from exc
 
 GOOGLE_CLIENT_SECRETS_FILE = "client_secret.json"
 
@@ -101,7 +104,7 @@ def oauth2callback():
     # Exchange authorization code for tokens
     try:
         flow.fetch_token(authorization_response=request.url)
-    except Exception as e:
+    except (ValueError, GoogleAuthError) as e:
         return f"Token exchange failed: {e}", 400
 
     credentials = flow.credentials
@@ -129,7 +132,7 @@ def today():
         return redirect("/authorize")
 
     creds = Credentials(**session["credentials"])
-    service = build("calendar", "v3", credentials=creds)
+    service: Any = build("calendar", "v3", credentials=creds)
 
     now = datetime.datetime.utcnow().isoformat() + "Z"
     end_of_day = (
@@ -139,7 +142,7 @@ def today():
     )
 
     # Call Google Calendar API to fetch today's events
-    events_result = service.events().list(
+    events_result = service.events().list(  # type: ignore
         calendarId="primary",
         timeMin=now,
         timeMax=end_of_day,
