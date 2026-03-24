@@ -78,6 +78,27 @@ client_secret.json
    ```
    client_secret.json
    ```
+6. Include your account among testers
+   - This is to avoid the access error - Access blocked: OAuth2Demo has not completed the Google verification process
+
+   - Go to 👉 Google Cloud Console → APIs & Services → OAuth consent screen
+   - Scroll to Test users
+   - Click Add users
+   - Add your Google email address:
+
+7. Enable the Google Calendar API in your Google Cloud project
+   - Open your Google Cloud project
+   - Go to: 👉 https://console.cloud.google.com/apis/dashboard
+      Make sure it’s the same project where you created your OAuth client.
+   - In the left menu, click: APIs & Services → Library
+   - In the search bar, type:
+   ```
+   Google Calendar API
+   ```
+   - Click Google Calendar API
+   - Click the blue button: ENABLE
+   - Wait 1–2 minutes, Google can take a moment to propagate the change.
+
 
 ---
 
