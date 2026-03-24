@@ -17,18 +17,22 @@ Main steps implemented:
 This module is intended purely for educational and testing purposes.
 Do NOT use this directly in production environments.
 """
-
+import os
 import datetime
 from flask import Flask, redirect, request, session, url_for
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Allow HTTP (not recommended for production)
+
 # Flask application instance
 app = Flask(__name__)
 
 # Secret key needed for session cookies
-app.secret_key = "your-secret-key"   # Replace with a secure value in production
+with open("my_secret.key", "rb") as key_file:
+    app.secret_key = key_file.read()
+
 
 # Google OAuth client secrets file
 GOOGLE_CLIENT_SECRETS_FILE = "client_secret.json"
