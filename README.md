@@ -135,6 +135,8 @@ Open your browser and go to:
 ```
 .
 ├── app.py               # Main Flask app
+├── keyGenerator.py      # private key generation → run this once to generate my_secret.key
 ├── client_secret.json   # Google OAuth client credentials (not committed)
-└── README.md
+├── README.md            # The project documentation file
+└── requirements.txt     # The list of Python packages
 ```
