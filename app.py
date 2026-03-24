@@ -42,7 +42,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 @app.route("/")
 def index():
     """Homepage with a link to initiate authorization."""
-    return '/authorizeAuthorize Google Calendar Access</a>'
+    return '<a href="/authorize">Authorize Google Calendar Access</a>'
 
 
 @app.route("/authorize")
