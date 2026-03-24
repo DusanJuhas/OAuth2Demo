@@ -42,7 +42,7 @@ cd OAuth2Demo
 ### 2. Install dependencies
 
 ```bash
-pip install flask google-auth google-auth-oauthlib google-api-python-client
+pip install -r requirements.txt
 ```
 
 ### 3. Add your Google OAuth credentials
