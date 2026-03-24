@@ -1,0 +1,34 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folders
+venv/
+.env/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Secret keys and credentials
+client_secret.json
+my_secret.key
+
+# IDE / editor folders
+.vscode/
+.idea/
+
+# Flask session files (if used)
+instance/
+
+# Logs
+*.log
+
+# Compiled bytecode
+*.pyc
+
+# Backup files
+*.bak
+*.swp
