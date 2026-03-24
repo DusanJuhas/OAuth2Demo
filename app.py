@@ -2,21 +2,18 @@
 Google Calendar OAuth 2.0 Demo Application
 -------------------------------------------
 
-This Flask application demonstrates how to implement the
-OAuth 2.0 Authorization Code flow with Google in order to read
-a user's Google Calendar events (read‑only).
+This version uses PKCE (Proof Key for Code Exchange), which is now
+required or strongly encouraged by Google for OAuth 2.0 public clients.
 
-Main steps implemented:
+Flow:
+1. User clicks /authorize → redirect to Google OAuth consent screen
+2. Google redirects to /oauth2callback with ?code=
+3. The app exchanges the authorization code for tokens using PKCE
+4. Tokens are used to call the Google Calendar API
 
-1. User clicks "Authorize" → redirected to Google OAuth consent screen
-2. Google redirects back to our /oauth2callback with an auth code
-3. App exchanges the authorization code for access/refresh tokens
-4. App uses Google Calendar API to fetch today's events
-5. Events are displayed in a simple HTML list
-
-This module is intended purely for educational and testing purposes.
-Do NOT use this directly in production environments.
+This app is for development/demo purposes only.
 """
+
 import os
 import datetime
 from flask import Flask, redirect, request, session, url_for
@@ -24,59 +21,53 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Allow HTTP (not recommended for production)
+# Allow OAuthlib to run over HTTP (localhost) for development only
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Flask application instance
 app = Flask(__name__)
 
-# Secret key needed for session cookies
-with open("my_secret.key", "rb") as key_file:
-    app.secret_key = key_file.read()
+# Load Flask secret key from external file (recommended)
+try:
+    with open("my_secret.key", "rb") as f:
+        app.secret_key = f.read()
+except FileNotFoundError:
+    raise RuntimeError("Missing my_secret.key. Run keyGenerator.py first!")
 
-
-# Google OAuth client secrets file
 GOOGLE_CLIENT_SECRETS_FILE = "client_secret.json"
 
-# OAuth scopes — read-only access to Google Calendar
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 
 @app.route("/")
 def index():
-    """
-    Home page route.
-
-    Returns:
-        str: HTML link prompting the user to authorize access.
-    """
-    return '<a href="/authorize">Authorize Google Calendar Access</a>'
+    """Homepage with a link to initiate authorization."""
+    return '/authorizeAuthorize Google Calendar Access</a>'
 
 
 @app.route("/authorize")
 def authorize():
     """
-    Starts the OAuth 2.0 Authorization Code flow.
-
-    Creates a Flow object using the client secrets and requested scopes.
-    Redirects the user to Google’s consent screen.
-
-    Returns:
-        Response: Redirect to Google's authorization URL.
+    Starts the OAuth 2.0 Authorization Code flow with PKCE enabled.
     """
+
+    # Build the OAuth flow
     flow = Flow.from_client_secrets_file(
         GOOGLE_CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         redirect_uri=url_for("oauth2callback", _external=True)
     )
 
-    # Generates Google OAuth 2.0 consent screen URL
+    # Enable PKCE (S256 is required by Google)
     authorization_url, state = flow.authorization_url(
-        access_type="offline",               # request refresh token
-        include_granted_scopes="true"        # reuse previously granted scopes
+        access_type="offline",
+        include_granted_scopes="true",
+        code_challenge_method="S256"
     )
 
-    # Store state to verify later (protection against CSRF)
+    # Save important items to session
     session["state"] = state
+    session["code_verifier"] = flow.code_verifier
 
     return redirect(authorization_url)
 
@@ -84,19 +75,16 @@ def authorize():
 @app.route("/oauth2callback")
 def oauth2callback():
     """
-    OAuth redirect handler.
-
-    Google redirects to this route with an authorization code.
-    This function exchanges the code for access & refresh tokens,
-    stores them in the session, and redirects the user to the "today" page.
-
-    Returns:
-        Response: Redirect to /today after successful token exchange.
+    Handles Google OAuth redirect.
+    Exchanges code + code_verifier for tokens.
     """
-    # Retrieve state from the session
-    state = session["state"]
 
-    # Recreate Flow object to complete OAuth exchange
+    state = session.get("state")
+
+    if not state:
+        return "Missing OAuth state. Start again from /authorize", 400
+
+    # Rebuild flow
     flow = Flow.from_client_secrets_file(
         GOOGLE_CLIENT_SECRETS_FILE,
         scopes=SCOPES,
@@ -104,12 +92,21 @@ def oauth2callback():
         redirect_uri=url_for("oauth2callback", _external=True)
     )
 
-    # Converts OAuth code from redirect URL into usable tokens
-    flow.fetch_token(authorization_response=request.url)
+    # Restore verifier for PKCE
+    flow.code_verifier = session.get("code_verifier")
+
+    if not flow.code_verifier:
+        return "Missing code_verifier. PKCE session expired.", 400
+
+    # Exchange authorization code for tokens
+    try:
+        flow.fetch_token(authorization_response=request.url)
+    except Exception as e:
+        return f"Token exchange failed: {e}", 400
 
     credentials = flow.credentials
 
-    # Save credentials in session for later use
+    # Store tokens in session (simple demo only!)
     session["credentials"] = {
         "token": credentials.token,
         "refresh_token": credentials.refresh_token,
@@ -125,25 +122,15 @@ def oauth2callback():
 @app.route("/today")
 def today():
     """
-    Fetches and displays all Google Calendar events occurring today.
-
-    Uses the stored OAuth credentials to authorize a Google Calendar API client.
-    Retrieves events occurring from 'now' until the end of the day.
-
-    Returns:
-        str: HTML formatted list of today’s events or message if empty.
+    Fetches today's Google Calendar events and displays them.
     """
-    # User must authorize first
+
     if "credentials" not in session:
         return redirect("/authorize")
 
-    # Load credentials from session
     creds = Credentials(**session["credentials"])
-
-    # Build Google Calendar API client
     service = build("calendar", "v3", credentials=creds)
 
-    # Time boundaries for today's events
     now = datetime.datetime.utcnow().isoformat() + "Z"
     end_of_day = (
         datetime.datetime.utcnow()
@@ -151,7 +138,7 @@ def today():
         .isoformat() + "Z"
     )
 
-    # Call Google Calendar API
+    # Call Google Calendar API to fetch today's events
     events_result = service.events().list(
         calendarId="primary",
         timeMin=now,
@@ -167,7 +154,7 @@ def today():
         return "<h2>No events for today.</h2>"
 
     # Build HTML list of events
-    html = "<h2>Today’s Events</h2><ul>"
+    html = "<h2>Today's Events</h2><ul>"
     for event in events:
         start = event["start"].get("dateTime", event["start"].get("date"))
         summary = event.get("summary", "(No title)")
@@ -175,7 +162,6 @@ def today():
     html += "</ul>"
 
     return html
-
 
 # Run Flask development server
 if __name__ == "__main__":
